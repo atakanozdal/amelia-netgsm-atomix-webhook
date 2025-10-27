@@ -5,8 +5,6 @@ TR : Token korumalı REST endpoint: Amelia/3. parti sistem POST atar, Netgsm ile
 amelia-netgsm-atomix-webhook, token korumalı bir REST endpoint sağlar: /wp-json/atomix/v1/amelia-sms?token=...
 Amelia (veya Postman/Automator/Zapier/Make) bu adrese JSON POST gönderir; eklenti telefonu ayrıştırır ve Netgsm REST v2 ile SMS gönderir.
 
-🇬🇧 Purpose
-
 amelia-netgsm-atomix-webhook exposes a token-protected REST endpoint: /wp-json/atomix/v1/amelia-sms?token=....
 Amelia (or Postman/Automator/Zapier/Make) POSTs JSON here; the plugin extracts phone and sends SMS via Netgsm REST v2.
 
