@@ -1,51 +1,50 @@
-# amelia-netgsm-atomix-webhook
-TR : Token korumalı REST endpoint: Amelia/3. parti sistem POST atar, Netgsm ile SMS gönderilir. EN:  Token-protected REST endpoint; any system (e.g., Amelia, Automator, Postman) POSTs JSON, SMS goes via Netgsm.
-🇹🇷 Amaç
+# Amelia → Netgsm SMS (Webhook Version)
+**Developer:** Atakan Özdal  
+**License:** MIT  
 
-amelia-netgsm-atomix-webhook, token korumalı bir REST endpoint sağlar: /wp-json/atomix/v1/amelia-sms?token=...
-Amelia (veya Postman/Automator/Zapier/Make) bu adrese JSON POST gönderir; eklenti telefonu ayrıştırır ve Netgsm REST v2 ile SMS gönderir.
+Amelia Webhook özelliğini kullanarak JSON POST alma → Netgsm SMS gönderimi sağlar.  
+**Token korumalı REST endpoint** içerir.
 
-amelia-netgsm-atomix-webhook exposes a token-protected REST endpoint: /wp-json/atomix/v1/amelia-sms?token=....
-Amelia (or Postman/Automator/Zapier/Make) POSTs JSON here; the plugin extracts phone and sends SMS via Netgsm REST v2.
+📌 Endpoint formatı:
 
-✨ Özellikler / Features
+https://site.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN
 
-Token-based security
+---
 
-Flexible JSON parsing for different Amelia payloads
+## 🇹🇷 Özellikler
+✅ Tüm Amelia Webhook event’leri desteklenir  
+✅ Event otomatik algılama (created/canceled/rescheduled)  
+✅ Token güvenliği  
+✅ Debug log kaydı  
+✅ XML fallback modu  
+✅ Custom mesaj şablonu desteği: `?msg=...`
 
-Quick Test in admin, token regeneration
+---
 
-Detailed debug logging
+## ⚙️ Kurulum (TR)
 
-Easy Postman testing
+1️⃣ ZIP yükleyin → Etkinleştirin  
+2️⃣ Ayarlar → Amelia → Netgsm SMS (Webhook)  
+3️⃣ Netgsm bilgilerini girin  
+4️⃣ Token kopyalayın  
+5️⃣ Amelia → Notifications → Webhooks
+   - **Method:** POST
+   - **Data Format:** JSON
+   - **URL:** endpoint + token
 
-🚀 Kurulum / Installation
+Örnek:
+https://baharbeklenbeauty.com/wp-json/atomix/v1/amelia-sms?token=XXXXXXXX
 
-ZIP olarak kur: amelia-netgsm-atomix-webhook.zip → Etkinleştir
 
-Ayarlar → Amelia → Netgsm SMS (Webhook) sayfasına gir
+✅ Test randevusu → SMS gelmelidir
 
-Netgsm bilgilerini gir, Token’ı kopyala / gerekiyorsa Yenile
+---
 
-Amelia veya otomasyon aracında Webhook hedefini şu yap:
-https://alanadresi.com/wp-json/atomix/v1/amelia-sms?token=TOKENBURADA
+## JSON Gövde Örneği
 
-📥 Beklenen Payload / Expected Payload
-
-Telefon otomatik şu alanlardan çekilmeye çalışılır:
-
-customer.phone, appointment.customer.phone, data.customer.phone, booking.customer.phone
-
-Etkinlik evt parametresi yoksa otomatik algılanır (created/rescheduled/canceled/status)
-
-Postman örneği:
-
-POST /wp-json/atomix/v1/amelia-sms?token=TOKEN
-Content-Type: application/json
-
+```json
 {
-  "customer": { "firstName": "Ayşe", "lastName": "Yılmaz", "phone": "0532XXXXXXX" },
+  "customer": { "firstName": "Ayşe", "lastName": "Yılmaz", "phone": "0532..." },
   "appointment": {
     "service": { "name": "Cilt Bakımı" },
     "date": "2025-10-30",
@@ -53,43 +52,34 @@ Content-Type: application/json
     "status": "approved"
   }
 }
+```
 
-🧪 Test / Testing
 
-Admin sayfasındaki Hızlı Test ile doğrudan SMS dene
+🚫 Cache / Firewall Ayarı
 
-Postman’la yukarıdaki gövdeleri yollayarak doğrula
+Cache hariç yolu:
+/wp-json/* 
 
-Yanıt {"ok":true,...} ise Netgsm kuyruğa almıştır
 
-🔐 Güvenlik / Security
+---
+🇬🇧 English Quick Guide
 
-Token’ı gizli tut; gerektiğinde Token’ı Yenile
+Install ZIP → Activate
 
-/wp-json/*’u cache’ten hariç tut
+Enter Netgsm creds
 
-HTTPS kullan
+Add Webhook URL with token
 
-🚧 Cache & Firewall
+Create test appointment ✅
 
-WP Fastest Cache / LiteSpeed / Cloudflare: /wp-json/* hariç tutulmalı
+📌 Changelog
+Version	Notes
+1.0.0	First webhook build
+1.1.0	Auto event detection
+📄 License
 
-Sunucudan api.netgsm.com.tr çıkışı açık olmalı
+MIT — © 2025 Atakan Özdal
 
-❗ Sorun Giderme / Troubleshooting
+---
 
-403 forbidden → Token yanlış / eksik
 
-missing-phone → JSON’da telefon alanı yok; URL’ye ?phone=9053… geçebilirsin
-
-Netgsm başarısız → debug.log’ı incele; code/body dönüyor
-
-🧾 Sürüm Notları / Changelog
-
-v1.0.0: İlk sürüm — Token, webhook, test, debug
-
-v1.1.0: Otomatik evt algılama, telefon alanları tarama kapsamı genişledi
-
-📄 Lisans / License
-
-MIT — ayrıntı için LICENSE dosyasına bakın.
