@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "amelia-netgsm-atomix-webhook: token-protected SMS endpoint for WordPress"
+type: software
+authors:
+  - family-names: "Özdal"
+    given-names: "Atakan"
+    orcid: "https://orcid.org/0009-0008-1045-5486"
+    affiliation: "atomiXbilişim"
+version: 1.0.4
+date-released: 2026-11-23
+repository-code: "https://github.com/atakanozdal/amelia-netgsm-atomix-webhook"
+keywords:
+  - wordpress
+  - sms
+  - netgsm
+abstract: "WordPress REST endpoint that accepts booking events from Amelia or other systems over POST and sends SMS through Netgsm."
