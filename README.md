@@ -1,5 +1,7 @@
 # Amelia → Netgsm SMS Webhook (Atomix)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24462826.svg)](https://doi.org/10.5281/zenodo.24462826)
+
 [English](#english) · [Türkçe](#türkçe)
 
 ## English
