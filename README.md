@@ -12,7 +12,6 @@ A WordPress plugin that adds a token protected endpoint at `/wp-json/atomix/v1/a
 - PHP 7.0 or later (the code uses the `??` operator)
 - Amelia with webhook support
 - A Netgsm account with API access and an approved SMS header (msgheader), enabled for web service use in the Netgsm panel
-- Pretty permalinks. The URL shown in the admin is built as `/wp-json/...`, which does not work with plain permalinks.
 
 ### Installation
 
@@ -29,7 +28,9 @@ https://example.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN&evt=canceled
 https://example.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN&evt=status
 ```
 
-Opening the URL in a browser (GET) with the right token returns `{"ok": true, "hint": "POST JSON bekleniyor"}`, which is a quick way to check the token.
+The endpoint only accepts POST. Opening the URL in a browser (GET) gives WordPress's `rest_no_route` 404, with or without a valid token.
+
+If whatever calls the endpoint can set request headers, send the token in an `X-Atomix-Token` header instead of the URL. That is the better option: full URLs end up in web server and proxy logs, headers usually do not. The `token` URL parameter still works, since Amelia's webhook settings only take a URL.
 
 ### Configuration
 
@@ -38,19 +39,19 @@ Settings are stored in the `atomix_netgsm_webhook` option.
 | Field | Option key | Notes |
 |---|---|---|
 | Usercode | `usercode` | Netgsm user code |
-| Password | `password` | Netgsm API password |
+| Password | `password` | Netgsm API password. The field stays empty after saving; leave it empty to keep the stored password |
 | Msgheader | `msgheader` | Approved sender name |
-| Encoding | `encoding` | `TR` (default), `TURKCE` or `UTF-8`, passed to Netgsm as is |
-| Debug log | `log` | On by default. Writes the Netgsm response to the PHP error log |
+| Encoding | `encoding` | `TR` (default), `TURKCE` or `UTF-8`, passed to Netgsm as is. Any other value falls back to `TR` |
+| Debug log | `log` | On by default, but only writes when `WP_DEBUG` is true. Logs the phone number masked to the last 2 digits, the HTTP code and the Netgsm status code |
 | Token'ı Yenile button | `token` | Creates a new token. The old URL stops working. |
 
 Usercode, password and msgheader are all required.
 
 ### How it works
 
-`/wp-json/atomix/v1/amelia-sms` accepts GET and POST. On a POST it:
+`/wp-json/atomix/v1/amelia-sms` accepts POST only. On each request it:
 
-1. Checks the `token` parameter. Returns 403 if it does not match.
+1. Reads the token from the `X-Atomix-Token` header, or from the `token` parameter if there is no header. Returns 403 if it does not match. If no token is stored, every request gets 403.
 2. Takes the phone from the `phone` query parameter if present, otherwise from `customer.phone`, otherwise from `appointment.customer.phone`. Returns 400 if none is found.
 3. Reads the rest of the fields, using the first one that exists:
    - first name: `customer.firstName`, `customer.first_name`
@@ -71,7 +72,7 @@ Usercode, password and msgheader are all required.
    | anything else, or missing | Merhaba {name}, {service} randevunuz {date} {time} için durum güncellendi ({status}). |
 
 5. Normalizes the phone to `905XXXXXXXXX` and sends it to `https://api.netgsm.com.tr/sms/rest/v2/send`.
-6. Returns `{"ok": ..., "http": <Netgsm HTTP code>, "resp": <Netgsm response body>}`, with status 200 on success and 500 otherwise.
+6. Returns `{"ok": true}` with status 200 on success, or `{"ok": false, "error": "send_failed"}` with status 500 otherwise. The reason (missing settings, Netgsm error code) is not sent back to the caller. Turn on `WP_DEBUG` and the debug log to see it.
 
 ### Example request
 
@@ -89,10 +90,11 @@ curl -X POST "https://example.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN&
   }'
 ```
 
-Sending a test SMS without a body also works, since the phone can come from the URL:
+Sending a test SMS without a body also works, since the phone can come from the URL. This one sends the token as a header:
 
 ```bash
-curl -X POST "https://example.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN&phone=5XXXXXXXXX"
+curl -X POST "https://example.com/wp-json/atomix/v1/amelia-sms?phone=5XXXXXXXXX" \
+  -H "X-Atomix-Token: YOUR_TOKEN"
 ```
 
 ### Known limitations
@@ -100,9 +102,7 @@ curl -X POST "https://example.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN&
 - The event is not detected from the payload. Without `evt` in the URL every webhook gets the generic "durum güncellendi" message.
 - Message texts are fixed in the code. There is no template setting.
 - If your Amelia version puts the customer inside `appointment.bookings[]` or sends the start time as `bookingStart`, none of the paths above match and the phone, date or time will be missing. Check the JSON your Amelia version sends.
-- The response includes Netgsm's raw reply, which the caller (Amelia) can see.
-- With debug log on, full Netgsm responses are written to the log.
-- The password field is a plain text input and the password is stored unencrypted in the options table.
+- The password is stored unencrypted in the options table.
 
 ### License
 
@@ -120,7 +120,6 @@ Atakan Özdal · atomiXbilişim · https://atakanozdal.com.tr
 - PHP 7.0 veya üstü (kodda `??` operatörü var)
 - Webhook desteği olan Amelia
 - API erişimi olan bir Netgsm hesabı ve Netgsm panelinde web servis kullanımına açılmış onaylı bir SMS başlığı (msgheader)
-- Kalıcı bağlantı ayarının "Düz" dışında bir seçenekte olması. Yönetim sayfasındaki adres `/wp-json/...` biçiminde üretiliyor, düz bağlantılarda çalışmaz.
 
 ### Kurulum
 
@@ -137,7 +136,9 @@ https://example.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN&evt=canceled
 https://example.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN&evt=status
 ```
 
-Adresi doğru token ile tarayıcıda açarsanız (GET) `{"ok": true, "hint": "POST JSON bekleniyor"}` döner. Token'ı denemenin kolay yolu bu.
+Uç nokta yalnızca POST kabul eder. Adresi tarayıcıda açarsanız (GET), token doğru olsun ya da olmasın WordPress'in `rest_no_route` 404 yanıtını alırsınız.
+
+Uç noktayı çağıran taraf istek başlığı ekleyebiliyorsa token'ı adrese değil `X-Atomix-Token` başlığına koyun. Daha doğru olan bu: tam adresler web sunucusu ve proxy günlüklerine düşer, başlıklar genelde düşmez. Amelia'nın webhook ayarı yalnızca adres aldığı için `token` parametresi de çalışmaya devam ediyor.
 
 ### Ayarlar
 
@@ -146,19 +147,19 @@ Ayarlar `atomix_netgsm_webhook` seçeneğinde saklanır.
 | Alan | Anahtar | Açıklama |
 |---|---|---|
 | Usercode | `usercode` | Netgsm kullanıcı kodu |
-| Password | `password` | Netgsm API şifresi |
+| Password | `password` | Netgsm API şifresi. Kaydettikten sonra alan boş görünür; boş bırakırsanız kayıtlı şifre korunur |
 | Msgheader | `msgheader` | Onaylı gönderici adı |
-| Encoding | `encoding` | `TR` (varsayılan), `TURKCE` veya `UTF-8`; Netgsm'e olduğu gibi gönderilir |
-| Debug log | `log` | Varsayılan olarak açık. Netgsm yanıtını PHP hata günlüğüne yazar |
+| Encoding | `encoding` | `TR` (varsayılan), `TURKCE` veya `UTF-8`; Netgsm'e olduğu gibi gönderilir. Başka bir değer gelirse `TR` kullanılır |
+| Debug log | `log` | Varsayılan olarak açık ama yalnızca `WP_DEBUG` açıkken yazar. Telefonun son 2 hanesini, HTTP kodunu ve Netgsm durum kodunu günlüğe yazar |
 | Token'ı Yenile düğmesi | `token` | Yeni token üretir. Eski adres çalışmaz hale gelir. |
 
 Usercode, password ve msgheader zorunlu.
 
 ### Nasıl çalışır
 
-`/wp-json/atomix/v1/amelia-sms` GET ve POST kabul eder. POST geldiğinde:
+`/wp-json/atomix/v1/amelia-sms` yalnızca POST kabul eder. Her istekte:
 
-1. `token` parametresine bakar. Tutmazsa 403 döner.
+1. Token'ı `X-Atomix-Token` başlığından, başlık yoksa `token` parametresinden okur. Tutmazsa 403 döner. Kayıtlı token yoksa her istek 403 alır.
 2. Telefonu önce `phone` sorgu parametresinden, yoksa `customer.phone` alanından, o da yoksa `appointment.customer.phone` alanından alır. Hiçbiri yoksa 400 döner.
 3. Diğer alanlarda bulduğu ilk değeri kullanır:
    - ad: `customer.firstName`, `customer.first_name`
@@ -179,7 +180,7 @@ Usercode, password ve msgheader zorunlu.
    | başka bir değer ya da boş | Merhaba {ad}, {hizmet} randevunuz {tarih} {saat} için durum güncellendi ({durum}). |
 
 5. Telefonu `905XXXXXXXXX` biçimine çevirip `https://api.netgsm.com.tr/sms/rest/v2/send` adresine gönderir.
-6. `{"ok": ..., "http": <Netgsm HTTP kodu>, "resp": <Netgsm yanıt gövdesi>}` döner; başarılıysa 200, değilse 500.
+6. Başarılıysa 200 ile `{"ok": true}`, değilse 500 ile `{"ok": false, "error": "send_failed"}` döner. Nedeni (eksik ayar, Netgsm hata kodu) çağıran tarafa gönderilmez; görmek için `WP_DEBUG` ve debug log'u açın.
 
 ### Örnek istek
 
@@ -197,10 +198,11 @@ curl -X POST "https://example.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN&
   }'
 ```
 
-Telefon adresten de alınabildiği için gövdesiz bir deneme SMS'i de atılabilir:
+Telefon adresten de alınabildiği için gövdesiz bir deneme SMS'i de atılabilir. Bu örnek token'ı başlıkta gönderiyor:
 
 ```bash
-curl -X POST "https://example.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN&phone=5XXXXXXXXX"
+curl -X POST "https://example.com/wp-json/atomix/v1/amelia-sms?phone=5XXXXXXXXX" \
+  -H "X-Atomix-Token: YOUR_TOKEN"
 ```
 
 ### Bilinen kısıtlar
@@ -208,9 +210,7 @@ curl -X POST "https://example.com/wp-json/atomix/v1/amelia-sms?token=YOUR_TOKEN&
 - Olay gövdeden anlaşılmıyor. Adreste `evt` yoksa her webhook'a genel "durum güncellendi" mesajı gider.
 - Mesaj metinleri kodun içinde sabit, şablon ayarı yok.
 - Amelia sürümünüz müşteriyi `appointment.bookings[]` içinde ya da başlangıç zamanını `bookingStart` olarak gönderiyorsa yukarıdaki yolların hiçbiri tutmaz; telefon, tarih ya da saat eksik kalır. Amelia'nın gönderdiği JSON'a bir bakın.
-- Yanıtta Netgsm'in ham cevabı da var, bunu çağıran taraf (Amelia) görür.
-- Debug log açıkken Netgsm yanıtlarının tamamı günlüğe yazılır.
-- Şifre alanı düz metin kutusu, şifre seçenekler tablosunda şifrelenmeden duruyor.
+- Şifre seçenekler tablosunda şifrelenmeden duruyor.
 
 ### Lisans
 
